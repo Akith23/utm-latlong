@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conversor UTM a LatLong - Generador KML</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Conversor UTM a LatLong</h1>
+        <p>
+          Convierte coordenadas UTM a LatLong y genera archivos KML para Google
+          Earth
+        </p>
+        <button id="helpBtn" class="btn-help" onclick="showHelpModal()">
+          Ayuda
+        </button>
+      </header>
+
+      <main>
+        <div class="input-section">
+          <h2>Ingrese las Coordenadas UTM</h2>
+
+          <div class="zone-config">
+            <label for="utmZone">Zona UTM:</label>
+            <input type="number" id="utmZone" value="19" min="1" max="60" />
+
+            <label for="hemisphere">Hemisferio:</label>
+            <select id="hemisphere">
+              <option value="N">Norte</option>
+              <option value="S" selected>Sur</option>
+            </select>
+          </div>
+
+          <div class="input-methods">
+            <div class="method-tabs">
+              <button class="tab-btn active" onclick="switchTab('manual')">
+                Ingreso Manual
+              </button>
+              <button class="tab-btn" onclick="switchTab('bulk')">
+                Ingreso Masivo
+              </button>
+            </div>
+
+            <!-- Ingreso Manual -->
+            <div id="manual-tab" class="tab-content active">
+              <div class="coordinate-input">
+                <div class="input-group">
+                  <label for="esteUTM">Este UTM:</label>
+                  <input
+                    type="number"
+                    id="esteUTM"
+                    placeholder="441143.76"
+                    step="0.01"
+                  />
+                </div>
+                <div class="input-group">
+                  <label for="norteUTM">Norte UTM:</label>
+                  <input
+                    type="number"
+                    id="norteUTM"
+                    placeholder="7536713.21"
+                    step="0.01"
+                  />
+                </div>
+                <div class="input-group">
+                  <label for="pointName">Nombre del Punto (opcional):</label>
+                  <input type="text" id="pointName" placeholder="Punto 1" />
+                </div>
+                <button onclick="addPoint()" class="btn-add">
+                  Agregar Punto
+                </button>
+              </div>
+            </div>
+
+            <!-- Ingreso Masivo -->
+            <div id="bulk-tab" class="tab-content">
+              <div class="bulk-input">
+                <label for="bulkData"
+                  >Pegue los datos (Este UTM, Norte UTM, separados por coma o
+                  tab):</label
+                >
+                <textarea
+                  id="bulkData"
+                  rows="10"
+                  placeholder="441143.76,7536713.21
+441294.10,7536781.02
+441575.16,7536791.93"
+                ></textarea>
+                <button onclick="processBulkData()" class="btn-process">
+                  Procesar Datos
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="results-section">
+          <h2>Puntos Agregados</h2>
+          <div class="points-table">
+            <table id="pointsTable">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Este UTM</th>
+                  <th>Norte UTM</th>
+                  <th>Latitud</th>
+                  <th>Longitud</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="pointsTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="actions">
+            <button onclick="clearAllPoints()" class="btn-clear">
+              Limpiar Todo
+            </button>
+            <button onclick="generateKML()" class="btn-generate" disabled>
+              Generar KML
+            </button>
+          </div>
+        </div>
+
+        <div class="preview-section">
+          <h2>Vista Previa del KML</h2>
+          <textarea
+            id="kmlPreview"
+            readonly
+            rows="10"
+            placeholder="El contenido del KML aparecerá aquí..."
+          ></textarea>
+          <button
+            onclick="downloadKML()"
+            id="downloadBtn"
+            class="btn-download"
+            disabled
+          >
+            Descargar KML
+          </button>
+        </div>
+      </main>
+      <footer
+        style="
+          text-align: center;
+          margin-top: 2rem;
+          color: #888;
+          font-size: 1rem;
+        "
+      >
+        <span
+          >Desarrollado por
+          <a
+            href="https://www.linkedin.com/in/alec-keith-camano/"
+            target="_blank"
+            style="color: #007bff; text-decoration: none; font-weight: bold"
+            >AIKC</a
+          ></span
+        >
+      </footer>
+    </div>
+
+    <div id="helpModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <span class="close" onclick="closeHelpModal()">&times;</span>
+        <h2>¿Cómo usar la aplicación?</h2>
+        <ol>
+          <li>
+            <b>Configura la zona UTM y hemisferio:</b> Por defecto es zona 19
+            Sur. Cambia si tus datos corresponden a otra zona.
+          </li>
+          <li>
+            <b>Ingresa tus coordenadas:</b> Puedes hacerlo manualmente o pegar
+            varias líneas en el ingreso masivo. El sistema acepta formatos con
+            comas decimales y puntos de miles.
+          </li>
+          <li>
+            <b>Revisa los puntos agregados:</b> Se mostrarán en la tabla. Puedes
+            eliminar los que no necesites.
+          </li>
+          <li>
+            <b>Genera el archivo KML:</b> Haz clic en "Generar KML" cuando
+            tengas tus puntos.
+          </li>
+          <li>
+            <b>Descarga el KML:</b> Haz clic en "Descargar KML" y ábrelo en
+            Google Earth.
+          </li>
+        </ol>
+        <h3>Ejemplo de datos masivos:</h3>
+        <pre>
+441143.76,7536713.21
+441294.10,7536781.02
+441575.16,7536791.93</pre
+        >
+        <h3>Formatos aceptados:</h3>
+        <ul>
+          <li>Comas: <code>441143.76,7536713.21,Punto 1</code></li>
+          <li>Tabulaciones: <code>441143.76 7536713.21 Punto 1</code></li>
+          <li>Punto y coma: <code>441143.76;7536713.21;Punto 1</code></li>
+          <li>Espacios: <code>441143.76 7536713.21 Punto 1</code></li>
+          <li>Formato europeo: <code>441.143,76 7.536.713,21</code></li>
+        </ul>
+        <h3>¿Dudas?</h3>
+        <p>
+          Consulta el README para más detalles o contacta al responsable del
+          proyecto.
+        </p>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/proj4@2.8.0/dist/proj4.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

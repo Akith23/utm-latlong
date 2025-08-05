@@ -1,10 +1,12 @@
 # Conversor UTM a LatLong - Generador KML
 
-Una aplicación web para convertir coordenadas UTM (Universal Transverse Mercator) a coordenadas geográficas (Latitud/Longitud) y generar archivos KML compatibles con Google Earth.
+Una aplicación web para convertir coordenadas UTM (Universal Transverse Mercator) a coordenadas geográficas (Latitud/Longitud), visualizar los puntos en un mapa interactivo y generar archivos KML compatibles con Google Earth.
 
 ## 🚀 Características
 
 - **Conversión precisa**: Convierte coordenadas UTM a LatLong usando la librería Proj4js
+- **Visualización en mapa**: Muestra los puntos convertidos como pines en un mapa interactivo (Leaflet)
+- **Controles de mapa**: Centra el mapa y alterna entre vista satelital y calles
 - **Múltiples métodos de entrada**:
   - Ingreso manual punto por punto
   - Ingreso masivo desde texto (CSV, TSV, etc.)
@@ -13,6 +15,13 @@ Una aplicación web para convertir coordenadas UTM (Universal Transverse Mercato
 - **Interfaz intuitiva**: Diseño responsivo y fácil de usar
 - **Vista previa**: Muestra el contenido del KML antes de descargar
 - **Gestión de puntos**: Agregar, eliminar y visualizar puntos individualmente
+
+## 📍 Mapa Interactivo
+
+- Los puntos agregados se muestran como pines en el mapa
+- Al hacer clic en un pin, se muestra la información del punto
+- Botón para centrar el mapa en todos los puntos
+- Botón para alternar entre vista satelital y calles
 
 ## 📋 Formato de Datos de Entrada
 
@@ -27,9 +36,10 @@ Una aplicación web para convertir coordenadas UTM (Universal Transverse Mercato
 Puede pegar datos en varios formatos separados por:
 
 - Comas: `441143.76,7536713.21,Punto 1`
-- Tabulaciones: `441143.76	7536713.21	Punto 1`
+- Tabulaciones: `441143.76\t7536713.21\tPunto 1`
 - Punto y coma: `441143.76;7536713.21;Punto 1`
 - Espacios: `441143.76 7536713.21 Punto 1`
+- Formato europeo: `441.143,76 7.536.713,21`
 
 Ejemplo de datos masivos:
 
@@ -48,33 +58,24 @@ Antes de ingresar coordenadas, asegúrese de configurar correctamente:
 - **Zona UTM**: Número de zona (1-60)
 - **Hemisferio**: Norte (N) o Sur (S)
 
-Para Colombia, las zonas más comunes son:
-
-- Zona 17N, 18N, 19N (hemisferio Norte)
-
 ## 🎯 Cómo Usar
 
 1. **Configurar Zona UTM**:
-
-   - Seleccione la zona UTM correcta
+   - Seleccione la zona UTM correcta (por defecto: zona 19 Sur)
    - Elija el hemisferio (Norte/Sur)
-
 2. **Ingresar Coordenadas**:
-
    - **Método Manual**: Ingrese una coordenada a la vez
    - **Método Masivo**: Pegue múltiples coordenadas desde Excel u otra fuente
-
 3. **Revisar Puntos**:
-
-   - Verifique las coordenadas convertidas en la tabla
+   - Verifique las coordenadas convertidas en la tabla y en el mapa
    - Elimine puntos incorrectos si es necesario
-
-4. **Generar KML**:
-
+4. **Visualizar en el Mapa**:
+   - Los puntos aparecerán como pines
+   - Use los controles para centrar el mapa o cambiar la vista
+5. **Generar KML**:
    - Haga clic en "Generar KML"
    - Revise la vista previa del contenido
-
-5. **Descargar**:
+6. **Descargar**:
    - Haga clic en "Descargar KML"
    - Abra el archivo en Google Earth
 
@@ -85,7 +86,7 @@ utm-latlong/
 ├── index.html          # Interfaz principal
 ├── styles.css          # Estilos y diseño
 ├── script.js           # Lógica de la aplicación
-└── README.md          # Este archivo
+└── README.md           # Este archivo
 ```
 
 ## 🌐 Tecnologías Utilizadas
@@ -94,6 +95,7 @@ utm-latlong/
 - **CSS3**: Diseño responsivo y estilos
 - **JavaScript**: Lógica de conversión y manejo de datos
 - **Proj4js**: Librería para conversiones de proyecciones cartográficas
+- **Leaflet**: Mapa interactivo y visualización de pines
 - **KML**: Formato de archivo para Google Earth
 
 ## 🔧 Instalación y Uso
@@ -106,7 +108,7 @@ utm-latlong/
 
 Basado en los datos de su imagen, estos son los pasos:
 
-1. Configure **Zona UTM: 17** y **Hemisferio: Norte**
+1. Configure **Zona UTM: 19** y **Hemisferio: Sur** (por defecto)
 2. Use el ingreso masivo con estos datos:
 
 ```
@@ -127,7 +129,7 @@ Basado en los datos de su imagen, estos son los pasos:
 
 - **Precisión**: La conversión es precisa para la mayoría de aplicaciones civiles
 - **Zona UTM**: Es crítico seleccionar la zona UTM correcta
-- **Formato de Entrada**: Los decimales deben usar punto (.) no coma (,)
+- **Formato de Entrada**: Los decimales pueden usar punto (.) o coma (,) según el formato
 - **Navegadores**: Funciona en navegadores modernos (Chrome, Firefox, Safari, Edge)
 
 ## 🤝 Contribuir
@@ -144,4 +146,4 @@ Este proyecto es de código abierto y está disponible bajo la licencia MIT.
 
 ---
 
-**¿Necesita ayuda?** Revise que la zona UTM esté configurada correctamente y que las coordenadas estén en el formato adecuado.
+**¿Necesita ayuda?** Use el botón "Ayuda" en la aplicación, consulte el README o contacte al responsable del proyecto.

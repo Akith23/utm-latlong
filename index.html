@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Conversor UTM a LatLong - Generador KML</title>
     <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
   </head>
   <body>
     <div class="container">
@@ -125,6 +129,20 @@
           </div>
         </div>
 
+        <div class="map-section">
+          <h2>Vista del Mapa</h2>
+          <div
+            id="map"
+            style="height: 400px; width: 100%; border-radius: 8px"
+          ></div>
+          <div class="map-controls">
+            <button onclick="centerMap()" class="btn-map">Centrar Mapa</button>
+            <button onclick="toggleMapView()" class="btn-map">
+              Cambiar Vista
+            </button>
+          </div>
+        </div>
+
         <div class="preview-section">
           <h2>Vista Previa del KML</h2>
           <textarea
@@ -213,6 +231,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/proj4@2.8.0/dist/proj4.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

@@ -2,6 +2,11 @@
 let points = [];
 let pointCounter = 1;
 
+// Variables del mapa
+let map;
+let markersLayer;
+let currentMapView = "satellite";
+
 // Configuración de proyecciones
 let utmProjection;
 let wgs84 = "+proj=longlat +datum=WGS84 +no_defs";
@@ -9,6 +14,7 @@ let wgs84 = "+proj=longlat +datum=WGS84 +no_defs";
 // Inicializar la aplicación
 document.addEventListener("DOMContentLoaded", function () {
   updateUTMProjection();
+  initializeMap();
 
   // Event listeners para cambios en zona UTM
   document
@@ -115,6 +121,7 @@ function addPoint() {
   document.getElementById("pointName").value = "";
 
   updatePointsTable();
+  updateMap();
   showMessage("Punto agregado correctamente", "success");
 }
 
@@ -218,6 +225,7 @@ function processBulkData() {
   updatePointsTable();
 
   if (addedCount > 0) {
+    updateMap();
     showMessage(
       `Se agregaron ${addedCount} puntos correctamente${
         errorCount > 0 ? `. ${errorCount} líneas tuvieron errores.` : "."
@@ -268,6 +276,7 @@ function updatePointsTable() {
 function removePoint(pointId) {
   points = points.filter((point) => point.id !== pointId);
   updatePointsTable();
+  updateMap();
   showMessage("Punto eliminado", "success");
 }
 
@@ -282,6 +291,7 @@ function clearAllPoints() {
     points = [];
     pointCounter = 1;
     updatePointsTable();
+    updateMap();
     document.getElementById("kmlPreview").value = "";
     document.getElementById("downloadBtn").disabled = true;
     showMessage("Todos los puntos han sido eliminados", "success");
@@ -443,6 +453,100 @@ function validateUTMCoordinates(easting, northing) {
   }
 
   return { valid: true };
+}
+
+// Inicializar el mapa
+function initializeMap() {
+  // Crear el mapa centrado en una ubicación por defecto
+  map = L.map("map").setView([-12.0464, -77.0428], 10); // Lima, Perú como ejemplo
+
+  // Capa de satélite por defecto
+  const satelliteLayer = L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    {
+      attribution: '&copy; <a href="https://www.esri.com/">Esri</a>',
+      maxZoom: 18,
+    }
+  );
+
+  // Capa de calles
+  const streetLayer = L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 18,
+    }
+  );
+
+  // Agregar capa por defecto
+  satelliteLayer.addTo(map);
+
+  // Crear grupo de marcadores
+  markersLayer = L.layerGroup().addTo(map);
+
+  // Almacenar las capas para poder cambiar entre ellas
+  map.satelliteLayer = satelliteLayer;
+  map.streetLayer = streetLayer;
+}
+
+// Actualizar el mapa con los puntos actuales
+function updateMap() {
+  if (!map || !markersLayer) return;
+
+  // Limpiar marcadores existentes
+  markersLayer.clearLayers();
+
+  if (points.length === 0) return;
+
+  // Agregar marcadores para cada punto
+  points.forEach((point) => {
+    const marker = L.marker([point.latitude, point.longitude]).bindPopup(`
+        <div>
+          <h4>${point.name}</h4>
+          <p><strong>Este UTM:</strong> ${point.esteUTM.toFixed(2)} m</p>
+          <p><strong>Norte UTM:</strong> ${point.norteUTM.toFixed(2)} m</p>
+          <p><strong>Latitud:</strong> ${point.latitude.toFixed(8)}°</p>
+          <p><strong>Longitud:</strong> ${point.longitude.toFixed(8)}°</p>
+        </div>
+      `);
+
+    markersLayer.addLayer(marker);
+  });
+
+  // Ajustar la vista del mapa para mostrar todos los puntos
+  centerMap();
+}
+
+// Centrar el mapa en todos los puntos
+function centerMap() {
+  if (!map || points.length === 0) return;
+
+  if (points.length === 1) {
+    // Si solo hay un punto, centrarlo con zoom 15
+    map.setView([points[0].latitude, points[0].longitude], 15);
+  } else {
+    // Si hay múltiples puntos, ajustar la vista para mostrar todos
+    const group = new L.featureGroup(markersLayer.getLayers());
+    map.fitBounds(group.getBounds().pad(0.1));
+  }
+}
+
+// Cambiar entre vista satelital y calles
+function toggleMapView() {
+  if (!map) return;
+
+  if (currentMapView === "satellite") {
+    map.removeLayer(map.satelliteLayer);
+    map.addLayer(map.streetLayer);
+    currentMapView = "street";
+    showMessage("Cambiado a vista de calles", "success");
+  } else {
+    map.removeLayer(map.streetLayer);
+    map.addLayer(map.satelliteLayer);
+    currentMapView = "satellite";
+    showMessage("Cambiado a vista satelital", "success");
+  }
 }
 
 // Mostrar modal de ayuda

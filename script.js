@@ -68,6 +68,62 @@ function switchTab(tabName) {
   document.getElementById(tabName + "-tab").classList.add("active");
 }
 
+// Función para obtener altitud desde APIs externas
+async function getElevation(latitude, longitude) {
+  try {
+    // Primero intentar con Open-Elevation (gratuito)
+    const elevation = await getElevationFromOpenElevation(latitude, longitude);
+    if (elevation !== null) {
+      return elevation;
+    }
+    
+    // Si falla, intentar con USGS (solo funciona en territorio de EE.UU.)
+    return await getElevationFromUSGS(latitude, longitude);
+  } catch (error) {
+    console.warn("Error obteniendo elevación:", error);
+    return null;
+  }
+}
+
+// API Open-Elevation (gratuita, mundial)
+async function getElevationFromOpenElevation(latitude, longitude) {
+  try {
+    const response = await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${latitude},${longitude}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    if (data.results && data.results.length > 0) {
+      return data.results[0].elevation;
+    }
+    return null;
+  } catch (error) {
+    console.warn("Error con Open-Elevation API:", error);
+    return null;
+  }
+}
+
+// API USGS (gratuita, solo EE.UU.)
+async function getElevationFromUSGS(latitude, longitude) {
+  try {
+    const response = await fetch(`https://nationalmap.gov/epqs/pqs.php?x=${longitude}&y=${latitude}&units=Meters&output=json`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    if (data.USGS_Elevation_Point_Query_Service && 
+        data.USGS_Elevation_Point_Query_Service.Elevation_Query &&
+        data.USGS_Elevation_Point_Query_Service.Elevation_Query.Elevation) {
+      const elevation = parseFloat(data.USGS_Elevation_Point_Query_Service.Elevation_Query.Elevation);
+      return isNaN(elevation) ? null : elevation;
+    }
+    return null;
+  } catch (error) {
+    console.warn("Error con USGS API:", error);
+    return null;
+  }
+}
+
 // Convertir coordenadas UTM a LatLong
 function utmToLatLong(easting, northing) {
   try {
@@ -86,7 +142,7 @@ function utmToLatLong(easting, northing) {
 }
 
 // Agregar un punto individual
-function addPoint() {
+async function addPoint() {
   const esteUTM = parseFloat(document.getElementById("esteUTM").value);
   const norteUTM = parseFloat(document.getElementById("norteUTM").value);
   const pointName =
@@ -104,31 +160,71 @@ function addPoint() {
     return;
   }
 
-  const point = {
-    id: Date.now(),
-    name: pointName,
-    esteUTM: esteUTM,
-    norteUTM: norteUTM,
-    latitude: latLong.latitude,
-    longitude: latLong.longitude,
-    source: 'manual' // Marcar como ingreso manual
-  };
+  // Mostrar mensaje de obtención de altitud
+  showMessage("Obteniendo altitud...", "info");
 
-  points.push(point);
-  pointCounter++;
+  try {
+    // Obtener altitud automáticamente
+    const altitude = await getElevation(latLong.latitude, latLong.longitude);
+    
+    const point = {
+      id: Date.now(),
+      name: pointName,
+      esteUTM: esteUTM,
+      norteUTM: norteUTM,
+      latitude: latLong.latitude,
+      longitude: latLong.longitude,
+      altitude: altitude, // Altitud obtenida de API
+      source: 'manual' // Marcar como ingreso manual
+    };
 
-  // Limpiar campos
-  document.getElementById("esteUTM").value = "";
-  document.getElementById("norteUTM").value = "";
-  document.getElementById("pointName").value = "";
+    points.push(point);
+    pointCounter++;
 
-  updatePointsTable();
-  updateMap();
-  showMessage("Punto agregado correctamente", "success");
+    // Limpiar campos
+    document.getElementById("esteUTM").value = "";
+    document.getElementById("norteUTM").value = "";
+    document.getElementById("pointName").value = "";
+
+    updatePointsTable();
+    updateMap();
+    
+    if (altitude !== null) {
+      showMessage(`Punto agregado correctamente con altitud: ${altitude.toFixed(2)} m.s.n.m`, "success");
+    } else {
+      showMessage("Punto agregado correctamente (no se pudo obtener altitud)", "success");
+    }
+  } catch (error) {
+    console.error("Error obteniendo altitud:", error);
+    
+    // Agregar punto sin altitud si falla la API
+    const point = {
+      id: Date.now(),
+      name: pointName,
+      esteUTM: esteUTM,
+      norteUTM: norteUTM,
+      latitude: latLong.latitude,
+      longitude: latLong.longitude,
+      altitude: null,
+      source: 'manual'
+    };
+
+    points.push(point);
+    pointCounter++;
+
+    // Limpiar campos
+    document.getElementById("esteUTM").value = "";
+    document.getElementById("norteUTM").value = "";
+    document.getElementById("pointName").value = "";
+
+    updatePointsTable();
+    updateMap();
+    showMessage("Punto agregado correctamente (no se pudo obtener altitud)", "success");
+  }
 }
 
 // Procesar datos masivos
-function processBulkData() {
+async function processBulkData() {
   const bulkData = document.getElementById("bulkData").value.trim();
 
   if (!bulkData) {
@@ -139,39 +235,90 @@ function processBulkData() {
   const lines = bulkData.split("\n");
   let addedCount = 0;
   let errorCount = 0;
+  
+  showMessage("Procesando puntos y obteniendo altitudes...", "info");
 
-  lines.forEach((line, index) => {
-    line = line.trim();
-    if (!line) return;
+  for (const [index, line] of lines.entries()) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
 
-    // Intentar diferentes separadores
-    let parts = [];
-    if (line.includes("\t")) {
-      parts = line.split("\t");
-    } else if (line.includes(",")) {
-      // Si hay más de una coma, probablemente es formato europeo
-      const matches = line.match(/([\d\.]+,[\d]+)/g);
-      if (matches && matches.length >= 2) {
-        // Extraer los dos primeros valores y convertirlos
-        let esteUTM = matches[0].replace(/\./g, "").replace(",", ".");
-        let norteUTM = matches[1].replace(/\./g, "").replace(",", ".");
-        const pointName =
-          line.split(matches[1])[1]?.trim() || `Punto ${pointCounter}`;
+    try {
+      // Intentar diferentes separadores
+      let parts = [];
+      if (trimmedLine.includes("\t")) {
+        parts = trimmedLine.split("\t");
+      } else if (trimmedLine.includes(",")) {
+        // Si hay más de una coma, probablemente es formato europeo
+        const matches = trimmedLine.match(/([\d\.]+,[\d]+)/g);
+        if (matches && matches.length >= 2) {
+          // Extraer los dos primeros valores y convertirlos
+          let esteUTM = matches[0].replace(/\./g, "").replace(",", ".");
+          let norteUTM = matches[1].replace(/\./g, "").replace(",", ".");
+          const pointName =
+            trimmedLine.split(matches[1])[1]?.trim() || `Punto ${pointCounter}`;
+          esteUTM = parseFloat(esteUTM);
+          norteUTM = parseFloat(norteUTM);
+          if (!isNaN(esteUTM) && !isNaN(norteUTM)) {
+            const latLong = utmToLatLong(esteUTM, norteUTM);
+
+            if (latLong) {
+              // Obtener altitud
+              const altitude = await getElevation(latLong.latitude, latLong.longitude);
+              
+              const point = {
+                id: Date.now() + index,
+                name: pointName,
+                esteUTM: esteUTM,
+                norteUTM: norteUTM,
+                latitude: latLong.latitude,
+                longitude: latLong.longitude,
+                altitude: altitude,
+                source: 'bulk' // Marcar como ingreso masivo
+              };
+              points.push(point);
+              pointCounter++;
+              addedCount++;
+            } else {
+              errorCount++;
+            }
+          } else {
+            errorCount++;
+          }
+          continue;
+        } else {
+          parts = trimmedLine.split(",");
+        }
+      } else if (trimmedLine.includes(";")) {
+        parts = trimmedLine.split(";");
+      } else {
+        parts = trimmedLine.split(/\s+/);
+      }
+
+      // Normalizar formato si es europeo (comas decimales y puntos de miles)
+      if (parts.length >= 2) {
+        let esteUTM = parts[0].replace(/\./g, "").replace(",", ".");
+        let norteUTM = parts[1].replace(/\./g, "").replace(",", ".");
+        const pointName = parts[2] ? parts[2].trim() : `Punto ${pointCounter}`;
         esteUTM = parseFloat(esteUTM);
         norteUTM = parseFloat(norteUTM);
         if (!isNaN(esteUTM) && !isNaN(norteUTM)) {
           const latLong = utmToLatLong(esteUTM, norteUTM);
-
           if (latLong) {
-        const point = {
-          id: Date.now() + index,
-          name: pointName,
-          esteUTM: esteUTM,
-          norteUTM: norteUTM,
-          latitude: latLong.latitude,
-          longitude: latLong.longitude,
-          source: 'bulk' // Marcar como ingreso masivo
-        };            points.push(point);
+            // Obtener altitud
+            const altitude = await getElevation(latLong.latitude, latLong.longitude);
+            
+            const point = {
+              id: Date.now() + index,
+              name: pointName,
+              esteUTM: esteUTM,
+              norteUTM: norteUTM,
+              latitude: latLong.latitude,
+              longitude: latLong.longitude,
+              altitude: altitude,
+              source: 'bulk' // Marcar como ingreso masivo
+            };
+
+            points.push(point);
             pointCounter++;
             addedCount++;
           } else {
@@ -180,56 +327,21 @@ function processBulkData() {
         } else {
           errorCount++;
         }
-        return;
-      } else {
-        parts = line.split(",");
-      }
-    } else if (line.includes(";")) {
-      parts = line.split(";");
-    } else {
-      parts = line.split(/\s+/);
-    }
-
-    // Normalizar formato si es europeo (comas decimales y puntos de miles)
-    if (parts.length >= 2) {
-      let esteUTM = parts[0].replace(/\./g, "").replace(",", ".");
-      let norteUTM = parts[1].replace(/\./g, "").replace(",", ".");
-      const pointName = parts[2] ? parts[2].trim() : `Punto ${pointCounter}`;
-      esteUTM = parseFloat(esteUTM);
-      norteUTM = parseFloat(norteUTM);
-      if (!isNaN(esteUTM) && !isNaN(norteUTM)) {
-        const latLong = utmToLatLong(esteUTM, norteUTM);
-        if (latLong) {
-          const point = {
-            id: Date.now() + index,
-            name: pointName,
-            esteUTM: esteUTM,
-            norteUTM: norteUTM,
-            latitude: latLong.latitude,
-            longitude: latLong.longitude,
-            source: 'bulk' // Marcar como ingreso masivo
-          };
-
-          points.push(point);
-          pointCounter++;
-          addedCount++;
-        } else {
-          errorCount++;
-        }
       } else {
         errorCount++;
       }
-    } else {
+    } catch (error) {
+      console.error(`Error procesando línea ${index + 1}:`, error);
       errorCount++;
     }
-  });
+  }
 
   updatePointsTable();
 
   if (addedCount > 0) {
     updateMap();
     showMessage(
-      `Se agregaron ${addedCount} puntos correctamente${
+      `Se agregaron ${addedCount} puntos correctamente con altitudes${
         errorCount > 0 ? `. ${errorCount} líneas tuvieron errores.` : "."
       }`,
       "success"

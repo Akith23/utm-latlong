@@ -257,6 +257,11 @@ function updatePointsTable() {
       'imported': '📁 Archivo'
     };
     
+    // Formatear altitud - mostrar valor si existe, sino mostrar vacío
+    const altitudeDisplay = point.altitude !== undefined && point.altitude !== null 
+      ? point.altitude.toFixed(2) + ' m' 
+      : '';
+    
     const row = document.createElement("tr");
     row.innerHTML = `
             <td>${point.name}</td>
@@ -264,6 +269,7 @@ function updatePointsTable() {
             <td>${point.norteUTM.toFixed(2)}</td>
             <td>${point.latitude.toFixed(8)}</td>
             <td>${point.longitude.toFixed(8)}</td>
+            <td>${altitudeDisplay}</td>
             <td>${sourceLabel[point.source] || '❓ Desconocido'}</td>
             <td>
                 <button class="btn-remove" onclick="removePoint(${
@@ -531,6 +537,11 @@ function updateMap() {
 
   // Agregar marcadores para cada punto
   points.forEach((point) => {
+    // Preparar información de altitud para el popup
+    const altitudeInfo = point.altitude !== undefined && point.altitude !== null 
+      ? `<p><strong>Altitud:</strong> ${point.altitude.toFixed(2)} m</p>` 
+      : '';
+    
     const marker = L.marker([point.latitude, point.longitude]).bindPopup(`
         <div>
           <h4>${point.name}</h4>
@@ -538,6 +549,7 @@ function updateMap() {
           <p><strong>Norte UTM:</strong> ${point.norteUTM.toFixed(2)} m</p>
           <p><strong>Latitud:</strong> ${point.latitude.toFixed(8)}°</p>
           <p><strong>Longitud:</strong> ${point.longitude.toFixed(8)}°</p>
+          ${altitudeInfo}
         </div>
       `);
 
@@ -708,6 +720,7 @@ async function parseKMLContent(kmlContent) {
               norteUTM: utmCoords.northing,
               latitude: coords.latitude,
               longitude: coords.longitude,
+              altitude: coords.altitude, // Incluir altitud si está presente
               source: 'imported' // Marcar como importado
             });
           }
@@ -736,6 +749,7 @@ async function parseKMLContent(kmlContent) {
                 norteUTM: utmCoords.northing,
                 latitude: coords.latitude,
                 longitude: coords.longitude,
+                altitude: coords.altitude, // Incluir altitud si está presente
                 source: 'imported' // Marcar como importado
               });
             }
@@ -769,6 +783,7 @@ async function parseKMLContent(kmlContent) {
                     norteUTM: utmCoords.northing,
                     latitude: coords.latitude,
                     longitude: coords.longitude,
+                    altitude: coords.altitude, // Incluir altitud si está presente
                     source: 'imported' // Marcar como importado
                   });
                 }
@@ -789,9 +804,18 @@ function parseCoordinates(coordString) {
   if (parts.length >= 2) {
     const longitude = parseFloat(parts[0]);
     const latitude = parseFloat(parts[1]);
+    let altitude = null;
+    
+    // Capturar altitud si está presente (tercer valor)
+    if (parts.length >= 3) {
+      const altValue = parseFloat(parts[2]);
+      if (!isNaN(altValue)) {
+        altitude = altValue;
+      }
+    }
     
     if (!isNaN(longitude) && !isNaN(latitude)) {
-      return { latitude, longitude };
+      return { latitude, longitude, altitude };
     }
   }
   return null;
@@ -830,10 +854,11 @@ function exportToExcel() {
   const hemisphere = document.getElementById("hemisphere").value;
   
   // Crear contenido CSV con punto y coma como separador de columnas y coma como separador decimal
-  let csvContent = "Nombre;Este UTM;Norte UTM;Zona UTM;Latitud;Longitud;Origen\n";
+  let csvContent = "Nombre;Este UTM;Norte UTM;Zona UTM;Latitud;Longitud;Altitud (m);Origen\n";
 
   function formatNumber(num, decimals = 2) {
     // Usar coma como separador decimal
+    if (num === undefined || num === null) return '';
     return num.toFixed(decimals).replace('.', ',');
   }
 
@@ -843,7 +868,11 @@ function exportToExcel() {
       'bulk': 'Masivo',
       'imported': 'Archivo KML/KMZ'
     };
-    csvContent += `"${point.name}";"${formatNumber(point.esteUTM)}";"${formatNumber(point.norteUTM)}";"${zone}${hemisphere}";"${formatNumber(point.latitude, 8)}";"${formatNumber(point.longitude, 8)}";"${sourceLabel[point.source] || 'Desconocido'}"\n`;
+    
+    // Formatear altitud para CSV
+    const altitudeValue = formatNumber(point.altitude);
+    
+    csvContent += `"${point.name}";"${formatNumber(point.esteUTM)}";"${formatNumber(point.norteUTM)}";"${zone}${hemisphere}";"${formatNumber(point.latitude, 8)}";"${formatNumber(point.longitude, 8)}";"${altitudeValue}";"${sourceLabel[point.source] || 'Desconocido'}"\n`;
   });
 
   // Crear y descargar archivo

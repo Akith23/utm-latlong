@@ -10,11 +10,14 @@ Una aplicación web para convertir coordenadas UTM (Universal Transverse Mercato
 - **Múltiples métodos de entrada**:
   - Ingreso manual punto por punto
   - Ingreso masivo desde texto (CSV, TSV, etc.)
+  - **Importación de archivos KML/KMZ con soporte de altitud**
 - **Soporte completo de zonas UTM**: Todas las zonas UTM (1-60) y hemisferios (Norte/Sur)
 - **Generación de KML**: Crea archivos KML listos para Google Earth
+- **Exportación a Excel/CSV**: Incluye altitud geográfica cuando está disponible
 - **Interfaz intuitiva**: Diseño responsivo y fácil de usar
 - **Vista previa**: Muestra el contenido del KML antes de descargar
 - **Gestión de puntos**: Agregar, eliminar y visualizar puntos individualmente
+- **Soporte de altitud**: Extrae y muestra altitud de archivos KML/KMZ
 
 ## 📍 Mapa Interactivo
 
@@ -23,7 +26,7 @@ Una aplicación web para convertir coordenadas UTM (Universal Transverse Mercato
 - Botón para centrar el mapa en todos los puntos
 - Botón para alternar entre vista satelital y calles
 
-## 📋 Formato de Datos de Entrada
+## 📋 Formato de Datos de Entrada y Salida
 
 ### Ingreso Manual
 
@@ -51,6 +54,24 @@ Ejemplo de datos masivos:
 441781.77,7536737.54
 ```
 
+### Importación de KML/KMZ con Altitud
+
+- **Soporte completo**: Lee archivos KML y KMZ estándar
+- **Extracción de altitud**: Captura automáticamente la altitud geográfica si está presente en el archivo
+- **Tipos de geometría**: Puntos, líneas (LineString) y polígonos (Polygon)
+- **Conversión automática**: Convierte coordenadas geográficas a UTM preservando la altitud
+- **Visualización**: La altitud se muestra en la tabla, mapa y se exporta a Excel/CSV
+
+### Exportación a Excel/CSV
+
+El archivo CSV exportado incluye las siguientes columnas:
+- Nombre del punto
+- Coordenadas UTM (Este y Norte)
+- Zona UTM
+- Coordenadas geográficas (Latitud y Longitud)
+- **Altitud en metros** (si está disponible)
+- Origen del punto (Manual, Masivo, o Archivo KML/KMZ)
+
 ## 🗺️ Configuración de Zona UTM
 
 Antes de ingresar coordenadas, asegúrese de configurar correctamente:
@@ -66,16 +87,22 @@ Antes de ingresar coordenadas, asegúrese de configurar correctamente:
 2. **Ingresar Coordenadas**:
    - **Método Manual**: Ingrese una coordenada a la vez
    - **Método Masivo**: Pegue múltiples coordenadas desde Excel u otra fuente
+   - **Subir KML/KMZ**: Importe archivos existentes (con soporte de altitud)
 3. **Revisar Puntos**:
    - Verifique las coordenadas convertidas en la tabla y en el mapa
+   - La altitud se mostrará si está disponible en los archivos importados
    - Elimine puntos incorrectos si es necesario
 4. **Visualizar en el Mapa**:
    - Los puntos aparecerán como pines
+   - Los popups muestran toda la información incluyendo altitud
    - Use los controles para centrar el mapa o cambiar la vista
 5. **Generar KML**:
    - Haga clic en "Generar KML"
    - Revise la vista previa del contenido
-6. **Descargar**:
+6. **Exportar a Excel**:
+   - Haga clic en "Exportar a Excel" para CSV compatible con Excel
+   - **El archivo incluye altitud geográfica cuando está disponible**
+7. **Descargar**:
    - Haga clic en "Descargar KML"
    - Abra el archivo en Google Earth
 
@@ -96,6 +123,8 @@ utm-latlong/
 - **JavaScript**: Lógica de conversión y manejo de datos
 - **Proj4js**: Librería para conversiones de proyecciones cartográficas
 - **Leaflet**: Mapa interactivo y visualización de pines
+- **JSZip**: Procesamiento de archivos KMZ comprimidos
+- **DOMParser**: Análisis de archivos KML/XML
 - **KML**: Formato de archivo para Google Earth
 
 ## 🔧 Instalación y Uso
@@ -130,6 +159,8 @@ Basado en los datos de su imagen, estos son los pasos:
 - **Precisión**: La conversión es precisa para la mayoría de aplicaciones civiles
 - **Zona UTM**: Es crítico seleccionar la zona UTM correcta
 - **Formato de Entrada**: Los decimales pueden usar punto (.) o coma (,) según el formato
+- **Altitud**: Solo está disponible para puntos importados de archivos KML/KMZ que contengan esta información
+- **Unidades de altitud**: La altitud se muestra en metros sobre el nivel del mar
 - **Navegadores**: Funciona en navegadores modernos (Chrome, Firefox, Safari, Edge)
 
 ## 🤝 Contribuir

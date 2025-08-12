@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Test Points with Altitude</name>
+    <description>Puntos de prueba con altitud conocida</description>
+    
+    <Placemark>
+      <name>Torre Eiffel</name>
+      <description>París, Francia - Altitud conocida: 35m sobre nivel del mar</description>
+      <Point>
+        <coordinates>2.2944813,48.8583701,35.0</coordinates>
+      </Point>
+    </Placemark>
+    
+    <Placemark>
+      <name>Machu Picchu</name>
+      <description>Cusco, Perú - Altitud conocida: 2430m sobre nivel del mar</description>
+      <Point>
+        <coordinates>-72.5449629,-13.1631412,2430.0</coordinates>
+      </Point>
+    </Placemark>
+    
+    <Placemark>
+      <name>Mount Everest Base Camp</name>
+      <description>Nepal - Altitud conocida: 5364m sobre nivel del mar</description>
+      <Point>
+        <coordinates>86.8523,27.9881,5364.0</coordinates>
+      </Point>
+    </Placemark>
+    
+    <Placemark>
+      <name>Nivel del Mar</name>
+      <description>Punto a nivel del mar - Altitud: 0m</description>
+      <Point>
+        <coordinates>0.0,0.0,0.0</coordinates>
+      </Point>
+    </Placemark>
+  </Document>
+</kml>

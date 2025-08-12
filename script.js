@@ -738,6 +738,7 @@ async function handleFileUpload(event) {
       kmlContent = await readFileAsText(file);
     }
 
+    showMessage("Procesando archivo y obteniendo altitudes...", "info");
     const extractedPoints = await parseKMLContent(kmlContent);
     
     if (extractedPoints.length > 0) {
@@ -748,7 +749,7 @@ async function handleFileUpload(event) {
       updatePointsTable();
       updateMap();
       
-      showMessage(`Se extrajeron ${extractedPoints.length} puntos del archivo ${file.name}`, "success");
+      showMessage(`Se extrajeron ${extractedPoints.length} puntos del archivo ${file.name} con altitudes`, "success");
     } else {
       showMessage("No se encontraron puntos válidos en el archivo", "error");
     }
@@ -818,7 +819,7 @@ async function parseKMLContent(kmlContent) {
       const coordinatesElement = pointElement.getElementsByTagName("coordinates")[0];
       if (coordinatesElement) {
         const coordText = coordinatesElement.textContent.trim();
-        const coords = parseCoordinates(coordText);
+        const coords = await parseCoordinates(coordText);
         
         if (coords) {
           // Convertir de LatLong a UTM
@@ -848,8 +849,9 @@ async function parseKMLContent(kmlContent) {
         const coordText = coordinatesElement.textContent.trim();
         const coordLines = coordText.split(/[\s\n]+/).filter(line => line.trim());
         
-        coordLines.forEach((line, lineIndex) => {
-          const coords = parseCoordinates(line);
+        for (let lineIndex = 0; lineIndex < coordLines.length; lineIndex++) {
+          const line = coordLines[lineIndex];
+          const coords = await parseCoordinates(line);
           if (coords) {
             const utmCoords = latLongToUTM(coords.latitude, coords.longitude);
             
@@ -861,12 +863,12 @@ async function parseKMLContent(kmlContent) {
                 norteUTM: utmCoords.northing,
                 latitude: coords.latitude,
                 longitude: coords.longitude,
-                altitude: coords.altitude, // Incluir altitud si está presente
+                altitude: coords.altitude, // Incluir altitud obtenida
                 source: 'imported' // Marcar como importado
               });
             }
           }
-        });
+        }
       }
     }
     
@@ -882,8 +884,9 @@ async function parseKMLContent(kmlContent) {
             const coordText = coordinatesElement.textContent.trim();
             const coordLines = coordText.split(/[\s\n]+/).filter(line => line.trim());
             
-            coordLines.forEach((line, lineIndex) => {
-              const coords = parseCoordinates(line);
+            for (let lineIndex = 0; lineIndex < coordLines.length; lineIndex++) {
+              const line = coordLines[lineIndex];
+              const coords = await parseCoordinates(line);
               if (coords) {
                 const utmCoords = latLongToUTM(coords.latitude, coords.longitude);
                 
@@ -895,12 +898,12 @@ async function parseKMLContent(kmlContent) {
                     norteUTM: utmCoords.northing,
                     latitude: coords.latitude,
                     longitude: coords.longitude,
-                    altitude: coords.altitude, // Incluir altitud si está presente
+                    altitude: coords.altitude, // Incluir altitud obtenida
                     source: 'imported' // Marcar como importado
                   });
                 }
               }
-            });
+            }
           }
         }
       }
@@ -911,7 +914,7 @@ async function parseKMLContent(kmlContent) {
 }
 
 // Función para parsear coordenadas individuales
-function parseCoordinates(coordString) {
+async function parseCoordinates(coordString) {
   const parts = coordString.trim().split(',');
   if (parts.length >= 2) {
     const longitude = parseFloat(parts[0]);
@@ -921,9 +924,14 @@ function parseCoordinates(coordString) {
     // Capturar altitud si está presente (tercer valor)
     if (parts.length >= 3) {
       const altValue = parseFloat(parts[2]);
-      if (!isNaN(altValue)) {
+      if (!isNaN(altValue) && altValue !== 0) {
         altitude = altValue;
       }
+    }
+    
+    // Si no hay altitud válida en el KML, obtenerla de APIs
+    if (!altitude && !isNaN(longitude) && !isNaN(latitude)) {
+      altitude = await getElevation(latitude, longitude);
     }
     
     if (!isNaN(longitude) && !isNaN(latitude)) {

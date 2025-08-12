@@ -1,0 +1,17 @@
+# Archivos de debug
+debug_*.js
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Logs
+*.log
+
+# Editor configs
+.vscode/
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

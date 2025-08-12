@@ -15,6 +15,7 @@ let wgs84 = "+proj=longlat +datum=WGS84 +no_defs";
 document.addEventListener("DOMContentLoaded", function () {
   updateUTMProjection();
   initializeMap();
+  setupDragAndDrop();
 
   // Event listeners para cambios en zona UTM
   document
@@ -110,6 +111,7 @@ function addPoint() {
     norteUTM: norteUTM,
     latitude: latLong.latitude,
     longitude: latLong.longitude,
+    source: 'manual' // Marcar como ingreso manual
   };
 
   points.push(point);
@@ -161,16 +163,15 @@ function processBulkData() {
           const latLong = utmToLatLong(esteUTM, norteUTM);
 
           if (latLong) {
-            const point = {
-              id: Date.now() + index,
-              name: pointName,
-              esteUTM: esteUTM,
-              norteUTM: norteUTM,
-              latitude: latLong.latitude,
-              longitude: latLong.longitude,
-            };
-
-            points.push(point);
+        const point = {
+          id: Date.now() + index,
+          name: pointName,
+          esteUTM: esteUTM,
+          norteUTM: norteUTM,
+          latitude: latLong.latitude,
+          longitude: latLong.longitude,
+          source: 'bulk' // Marcar como ingreso masivo
+        };            points.push(point);
             pointCounter++;
             addedCount++;
           } else {
@@ -206,6 +207,7 @@ function processBulkData() {
             norteUTM: norteUTM,
             latitude: latLong.latitude,
             longitude: latLong.longitude,
+            source: 'bulk' // Marcar como ingreso masivo
           };
 
           points.push(point);
@@ -249,6 +251,12 @@ function updatePointsTable() {
   tableBody.innerHTML = "";
 
   points.forEach((point) => {
+    const sourceLabel = {
+      'manual': '✏️ Manual',
+      'bulk': '📝 Masivo', 
+      'imported': '📁 Archivo'
+    };
+    
     const row = document.createElement("tr");
     row.innerHTML = `
             <td>${point.name}</td>
@@ -256,6 +264,7 @@ function updatePointsTable() {
             <td>${point.norteUTM.toFixed(2)}</td>
             <td>${point.latitude.toFixed(8)}</td>
             <td>${point.longitude.toFixed(8)}</td>
+            <td>${sourceLabel[point.source] || '❓ Desconocido'}</td>
             <td>
                 <button class="btn-remove" onclick="removePoint(${
                   point.id
@@ -265,10 +274,14 @@ function updatePointsTable() {
     tableBody.appendChild(row);
   });
 
-  // Habilitar/deshabilitar botón de generar KML
+  // Habilitar/deshabilitar botones
   const generateBtn = document.querySelector(".btn-generate");
+  const exportBtn = document.querySelector(".btn-export");
   if (generateBtn) {
     generateBtn.disabled = points.length === 0;
+  }
+  if (exportBtn) {
+    exportBtn.disabled = points.length === 0;
   }
 }
 
@@ -295,6 +308,23 @@ function clearAllPoints() {
     document.getElementById("kmlPreview").value = "";
     document.getElementById("downloadBtn").disabled = true;
     showMessage("Todos los puntos han sido eliminados", "success");
+  }
+}
+
+// Limpiar solo puntos importados
+function clearImportedPoints() {
+  const importedPoints = points.filter(point => point.source === 'imported');
+  
+  if (importedPoints.length === 0) {
+    showMessage("No hay puntos importados para limpiar", "error");
+    return;
+  }
+
+  if (confirm(`¿Está seguro que desea eliminar los ${importedPoints.length} puntos importados?`)) {
+    points = points.filter(point => point.source !== 'imported');
+    updatePointsTable();
+    updateMap();
+    showMessage(`Se eliminaron ${importedPoints.length} puntos importados`, "success");
   }
 }
 
@@ -557,4 +587,326 @@ function showHelpModal() {
 // Cerrar modal de ayuda
 function closeHelpModal() {
   document.getElementById("helpModal").style.display = "none";
+}
+
+// Función para manejar la carga de archivos KML/KMZ
+async function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const fileName = file.name.toLowerCase();
+  const isKMZ = fileName.endsWith('.kmz');
+  const isKML = fileName.endsWith('.kml');
+
+  if (!isKMZ && !isKML) {
+    showMessage("Por favor seleccione un archivo KML o KMZ válido", "error");
+    return;
+  }
+
+  showUploadProgress(true);
+
+  try {
+    let kmlContent;
+    
+    if (isKMZ) {
+      kmlContent = await extractKMLFromKMZ(file);
+    } else {
+      kmlContent = await readFileAsText(file);
+    }
+
+    const extractedPoints = await parseKMLContent(kmlContent);
+    
+    if (extractedPoints.length > 0) {
+      // Agregar puntos extraídos a la lista actual
+      points.push(...extractedPoints);
+      pointCounter += extractedPoints.length;
+      
+      updatePointsTable();
+      updateMap();
+      
+      showMessage(`Se extrajeron ${extractedPoints.length} puntos del archivo ${file.name}`, "success");
+    } else {
+      showMessage("No se encontraron puntos válidos en el archivo", "error");
+    }
+    
+  } catch (error) {
+    console.error("Error procesando archivo:", error);
+    showMessage("Error al procesar el archivo. Verifique que sea un KML/KMZ válido", "error");
+  } finally {
+    showUploadProgress(false);
+    // Limpiar el input para permitir cargar el mismo archivo nuevamente
+    event.target.value = '';
+  }
+}
+
+// Función para extraer KML de un archivo KMZ
+async function extractKMLFromKMZ(file) {
+  const zip = new JSZip();
+  const contents = await zip.loadAsync(file);
+  
+  // Buscar el archivo doc.kml o cualquier archivo .kml
+  let kmlFile = contents.files['doc.kml'] || 
+                Object.values(contents.files).find(f => f.name.endsWith('.kml'));
+  
+  if (!kmlFile) {
+    throw new Error("No se encontró archivo KML dentro del KMZ");
+  }
+  
+  return await kmlFile.async("text");
+}
+
+// Función para leer archivo como texto
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = (e) => reject(e);
+    reader.readAsText(file);
+  });
+}
+
+// Función para parsear contenido KML y extraer coordenadas
+async function parseKMLContent(kmlContent) {
+  const parser = new DOMParser();
+  const kmlDoc = parser.parseFromString(kmlContent, "text/xml");
+  
+  // Verificar si hay errores de parsing
+  const parserError = kmlDoc.getElementsByTagName("parsererror");
+  if (parserError.length > 0) {
+    throw new Error("Error al parsear el archivo KML");
+  }
+  
+  const extractedPoints = [];
+  
+  // Buscar todos los elementos Placemark
+  const placemarks = kmlDoc.getElementsByTagName("Placemark");
+  
+  for (let i = 0; i < placemarks.length; i++) {
+    const placemark = placemarks[i];
+    
+    // Obtener nombre del punto
+    const nameElement = placemark.getElementsByTagName("name")[0];
+    const pointName = nameElement ? nameElement.textContent.trim() : `Punto importado ${i + 1}`;
+    
+    // Buscar coordenadas en Point
+    const pointElement = placemark.getElementsByTagName("Point")[0];
+    if (pointElement) {
+      const coordinatesElement = pointElement.getElementsByTagName("coordinates")[0];
+      if (coordinatesElement) {
+        const coordText = coordinatesElement.textContent.trim();
+        const coords = parseCoordinates(coordText);
+        
+        if (coords) {
+          // Convertir de LatLong a UTM
+          const utmCoords = latLongToUTM(coords.latitude, coords.longitude);
+          
+          if (utmCoords) {
+            extractedPoints.push({
+              id: Date.now() + i,
+              name: pointName,
+              esteUTM: utmCoords.easting,
+              norteUTM: utmCoords.northing,
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              source: 'imported' // Marcar como importado
+            });
+          }
+        }
+      }
+    }
+    
+    // También buscar en LineString para extraer vértices
+    const lineStringElement = placemark.getElementsByTagName("LineString")[0];
+    if (lineStringElement) {
+      const coordinatesElement = lineStringElement.getElementsByTagName("coordinates")[0];
+      if (coordinatesElement) {
+        const coordText = coordinatesElement.textContent.trim();
+        const coordLines = coordText.split(/[\s\n]+/).filter(line => line.trim());
+        
+        coordLines.forEach((line, lineIndex) => {
+          const coords = parseCoordinates(line);
+          if (coords) {
+            const utmCoords = latLongToUTM(coords.latitude, coords.longitude);
+            
+            if (utmCoords) {
+              extractedPoints.push({
+                id: Date.now() + i * 1000 + lineIndex,
+                name: `${pointName} - Vértice ${lineIndex + 1}`,
+                esteUTM: utmCoords.easting,
+                norteUTM: utmCoords.northing,
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                source: 'imported' // Marcar como importado
+              });
+            }
+          }
+        });
+      }
+    }
+    
+    // Buscar en Polygon
+    const polygonElement = placemark.getElementsByTagName("Polygon")[0];
+    if (polygonElement) {
+      const outerBoundary = polygonElement.getElementsByTagName("outerBoundaryIs")[0];
+      if (outerBoundary) {
+        const linearRing = outerBoundary.getElementsByTagName("LinearRing")[0];
+        if (linearRing) {
+          const coordinatesElement = linearRing.getElementsByTagName("coordinates")[0];
+          if (coordinatesElement) {
+            const coordText = coordinatesElement.textContent.trim();
+            const coordLines = coordText.split(/[\s\n]+/).filter(line => line.trim());
+            
+            coordLines.forEach((line, lineIndex) => {
+              const coords = parseCoordinates(line);
+              if (coords) {
+                const utmCoords = latLongToUTM(coords.latitude, coords.longitude);
+                
+                if (utmCoords) {
+                  extractedPoints.push({
+                    id: Date.now() + i * 1000 + lineIndex,
+                    name: `${pointName} - Vértice ${lineIndex + 1}`,
+                    esteUTM: utmCoords.easting,
+                    norteUTM: utmCoords.northing,
+                    latitude: coords.latitude,
+                    longitude: coords.longitude,
+                    source: 'imported' // Marcar como importado
+                  });
+                }
+              }
+            });
+          }
+        }
+      }
+    }
+  }
+  
+  return extractedPoints;
+}
+
+// Función para parsear coordenadas individuales
+function parseCoordinates(coordString) {
+  const parts = coordString.trim().split(',');
+  if (parts.length >= 2) {
+    const longitude = parseFloat(parts[0]);
+    const latitude = parseFloat(parts[1]);
+    
+    if (!isNaN(longitude) && !isNaN(latitude)) {
+      return { latitude, longitude };
+    }
+  }
+  return null;
+}
+
+// Función para convertir LatLong a UTM
+function latLongToUTM(latitude, longitude) {
+  try {
+    const [easting, northing] = proj4(wgs84, utmProjection, [longitude, latitude]);
+    return {
+      easting: parseFloat(easting.toFixed(2)),
+      northing: parseFloat(northing.toFixed(2))
+    };
+  } catch (error) {
+    console.error("Error en conversión LatLong a UTM:", error);
+    return null;
+  }
+}
+
+// Función para mostrar/ocultar progreso de carga
+function showUploadProgress(show) {
+  const progressElement = document.getElementById("uploadProgress");
+  if (progressElement) {
+    progressElement.style.display = show ? "block" : "none";
+  }
+}
+
+// Función para exportar a Excel (CSV)
+function exportToExcel() {
+  if (points.length === 0) {
+    showMessage("No hay puntos para exportar", "error");
+    return;
+  }
+
+  const zone = document.getElementById("utmZone").value;
+  const hemisphere = document.getElementById("hemisphere").value;
+  
+  // Crear contenido CSV con punto y coma como separador de columnas y coma como separador decimal
+  let csvContent = "Nombre;Este UTM;Norte UTM;Zona UTM;Latitud;Longitud;Origen\n";
+
+  function formatNumber(num, decimals = 2) {
+    // Usar coma como separador decimal
+    return num.toFixed(decimals).replace('.', ',');
+  }
+
+  points.forEach(point => {
+    const sourceLabel = {
+      'manual': 'Manual',
+      'bulk': 'Masivo',
+      'imported': 'Archivo KML/KMZ'
+    };
+    csvContent += `"${point.name}";"${formatNumber(point.esteUTM)}";"${formatNumber(point.norteUTM)}";"${zone}${hemisphere}";"${formatNumber(point.latitude, 8)}";"${formatNumber(point.longitude, 8)}";"${sourceLabel[point.source] || 'Desconocido'}"\n`;
+  });
+
+  // Crear y descargar archivo
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  
+  const filename = `coordenadas_utm_zona_${zone}${hemisphere}_${new Date().toISOString().slice(0, 10)}.csv`;
+  
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+
+  showMessage(`Archivo ${filename} exportado correctamente`, "success");
+}
+
+// Configurar funcionalidad de arrastrar y soltar
+function setupDragAndDrop() {
+  const uploadTab = document.getElementById('upload-tab');
+  const fileUpload = uploadTab.querySelector('.file-upload');
+  
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    fileUpload.addEventListener(eventName, preventDefaults, false);
+  });
+
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    fileUpload.addEventListener(eventName, highlight, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    fileUpload.addEventListener(eventName, unhighlight, false);
+  });
+
+  function highlight(e) {
+    fileUpload.classList.add('dragover');
+  }
+
+  function unhighlight(e) {
+    fileUpload.classList.remove('dragover');
+  }
+
+  fileUpload.addEventListener('drop', handleDrop, false);
+
+  function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    
+    if (files.length > 0) {
+      const file = files[0];
+      // Simular el evento de cambio del input file
+      const fileInput = document.getElementById('fileInput');
+      
+      // Crear un nuevo evento de cambio
+      const event = { target: { files: [file] } };
+      handleFileUpload(event);
+    }
+  }
 }

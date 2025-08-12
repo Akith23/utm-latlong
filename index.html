@@ -46,6 +46,9 @@
               <button class="tab-btn" onclick="switchTab('bulk')">
                 Ingreso Masivo
               </button>
+              <button class="tab-btn" onclick="switchTab('upload')">
+                Subir KML/KMZ
+              </button>
             </div>
 
             <!-- Ingreso Manual -->
@@ -98,6 +101,34 @@
                 </button>
               </div>
             </div>
+
+            <!-- Subir KML/KMZ -->
+            <div id="upload-tab" class="tab-content">
+              <div class="file-upload">
+                <label for="fileInput">📁 Seleccione archivo KML o KMZ</label>
+                <input
+                  type="file"
+                  id="fileInput"
+                  accept=".kml,.kmz"
+                  onchange="handleFileUpload(event)"
+                  style="margin-bottom: 1rem;"
+                />
+                <div class="upload-info">
+                  <p style="font-size: 0.9rem; color: #666; margin-bottom: 0.5rem;">
+                    <strong>Arrastre y suelte</strong> un archivo aquí o haga clic para seleccionar
+                  </p>
+                  <p style="font-size: 0.8rem; color: #888;">
+                    Soporta archivos KML y KMZ. Las coordenadas se convertirán automáticamente a UTM.
+                  </p>
+                </div>
+                <div id="uploadProgress" style="display: none;" class="upload-progress">
+                  <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                  </div>
+                  <p>Procesando archivo...</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -112,6 +143,7 @@
                   <th>Norte UTM</th>
                   <th>Latitud</th>
                   <th>Longitud</th>
+                  <th>Origen</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -123,8 +155,14 @@
             <button onclick="clearAllPoints()" class="btn-clear">
               Limpiar Todo
             </button>
+            <button onclick="clearImportedPoints()" class="btn-clear" title="Eliminar solo puntos importados de KML/KMZ">
+              Limpiar Importados
+            </button>
             <button onclick="generateKML()" class="btn-generate" disabled>
               Generar KML
+            </button>
+            <button onclick="exportToExcel()" class="btn-export" disabled>
+              Exportar a Excel
             </button>
           </div>
         </div>
@@ -191,9 +229,9 @@
             Sur. Cambia si tus datos corresponden a otra zona.
           </li>
           <li>
-            <b>Ingresa tus coordenadas:</b> Puedes hacerlo manualmente o pegar
-            varias líneas en el ingreso masivo. El sistema acepta formatos con
-            comas decimales y puntos de miles.
+            <b>Ingresa tus coordenadas:</b> Puedes hacerlo manualmente, pegar
+            varias líneas en el ingreso masivo, o subir un archivo KML/KMZ. 
+            El sistema acepta formatos con comas decimales y puntos de miles.
           </li>
           <li>
             <b>Revisa los puntos agregados:</b> Se mostrarán en la tabla. Puedes
@@ -204,10 +242,15 @@
             tengas tus puntos.
           </li>
           <li>
-            <b>Descarga el KML:</b> Haz clic en "Descargar KML" y ábrelo en
-            Google Earth.
+            <b>Descarga el KML o exporta a Excel:</b> Puedes descargar un archivo KML 
+            para Google Earth o exportar las coordenadas UTM en formato CSV para Excel.
           </li>
         </ol>
+        <h3>Subir archivos KML/KMZ:</h3>
+        <p>
+          Puedes subir archivos KML o KMZ existentes para extraer automáticamente las coordenadas.
+          La aplicación procesará puntos, líneas y polígonos, convirtiendo las coordenadas a UTM.
+        </p>
         <h3>Ejemplo de datos masivos:</h3>
         <pre>
 441143.76,7536713.21
@@ -232,6 +275,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/proj4@2.8.0/dist/proj4.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="script.js"></script>
   </body>
 </html>
